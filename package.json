@@ -1,15 +1,15 @@
 {
 	"name": "better-google-fonts",
-	"displayName": "Better Google Fonts",
-	"description": "Allows you to browse and insert Google Fonts <link> or @import !",
+	"displayName": "Better Google Fonts for VS Code",
+	"description": "Allows you to view and insert Google <link> or @import fonts with the ability to select font weight from the drop-down list ",
 	"version": "0.0.1",
-	"publisher": "Pavlo_K",
+	"publisher": "Pavlo-K",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/PavloKrovitskyi/vsc-better-google-fonts.git"
 	},
 	"engines": {
-		"vscode": "^1.17.0"
+		"vscode": "^1.70.0"
 	},
 	"categories": [
 		"Other"
@@ -40,11 +40,11 @@
 		"@types/mocha": "^2.2.42",
 		"@types/node": "^7.0.43",
 		"@types/node-fetch": "^2.5.3",
-		"@types/vscode": "^1.98.0",
-		"typescript": "^5.8.2",
-		"vscode-test": "^1.6.1"
+		"@types/vscode": "^1.70.0",
+		"typescript": "^5.8.2"
 	},
 	"dependencies": {
-		"node-fetch": "^1.7.3"
-	}
+		"node-fetch": "^2.7.0"
+	},
+	"license": "MIT"
 }
