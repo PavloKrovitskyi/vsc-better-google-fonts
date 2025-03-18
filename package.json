@@ -1,0 +1,47 @@
+{
+	"name": "better-google-fonts",
+	"displayName": "Better Google Fonts",
+	"description": "Allows you to browse and insert Google Fonts <link> or @import !",
+	"version": "0.0.1",
+	"publisher": "Pavlo_K",
+	"repository": "https://github.com/liorchamla/vsc-google-fonts",
+	"engines": {
+		"vscode": "^1.17.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onCommand:extension.insertLink",
+		"onCommand:extension.insertImport"
+	],
+	"main": "./out/extension",
+	"contributes": {
+		"commands": [
+			{
+				"command": "extension.insertLink",
+				"title": "Google Fonts: Insert <link>"
+			},
+			{
+				"command": "extension.insertImport",
+				"title": "Google Fonts: Insert CSS @import"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./tsconfig.json",
+		"watch": "tsc -watch -p ./tsconfig.json"
+	},
+	"devDependencies": {
+		"@types/mocha": "^2.2.42",
+		"@types/node": "^7.0.43",
+		"@types/node-fetch": "^2.5.3",
+		"@types/vscode": "^1.98.0",
+		"typescript": "^5.8.2",
+		"vscode-test": "^1.6.1"
+	},
+	"dependencies": {
+		"node-fetch": "^1.7.3"
+	}
+}
