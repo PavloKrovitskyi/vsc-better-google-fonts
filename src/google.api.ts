@@ -2,9 +2,14 @@ import fetch from 'node-fetch';
 import GoogleFontFamily from './font';
 
 export default class GoogleApi {
+	// Створюємо змінну для ключа API
+	private static readonly apiKey: string =
+		'AIzaSyAjdoSTUaoRlI8yMnIG1er_eQuaI0Bu8Y4';
+
 	static async getGoogleFonts(): Promise<GoogleFontFamily[]> {
+		// Використовуємо змінну apiKey для формування запиту
 		const response = await fetch(
-			'https://www.googleapis.com/webfonts/v1/webfonts?sort=trending&key=AIzaSyBVwVbN-QhwcaSToxnk1zCEpLuoNXBtFdo'
+			`https://www.googleapis.com/webfonts/v1/webfonts?sort=trending&key=${GoogleApi.apiKey}`
 		);
 		const json = await response.json();
 		return json.items;
