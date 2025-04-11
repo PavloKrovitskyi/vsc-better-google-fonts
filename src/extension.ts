@@ -1,118 +1,193 @@
-'use strict';
-
 import * as vscode from 'vscode';
-import GoogleFontFamily from './font';
-import GoogleApi from './google.api';
+import { Font, getFonts, generateGoogleFontsURL } from './google.api';
 
-// Holds the pick options for the user :
-const pickOptions = {
-	matchOnDescription: true,
-	matchOnDetail: true,
-	placeHolder: 'Type Google Font name',
-};
+let previewPanel: vscode.WebviewPanel | undefined;
 
-/**
- * Allows to insert any text inside the editor
- * @param text The text you want to insert in the editor at the position where the cursor is
- */
-function insertText(text: string) {
-	var editor = vscode.window.activeTextEditor;
-	if (!editor) return;
+async function selectFont(): Promise<Font | undefined> {
+	const fonts = await getFonts();
 
-	editor
-		.edit((editBuilder) => {
-			editBuilder.delete(editor.selection);
-		})
-		.then(() => {
-			editor.edit((editBuilder) => {
-				editBuilder.insert(editor.selection.start, text);
-			});
+	const previewButton: vscode.QuickInputButton = {
+		iconPath: new vscode.ThemeIcon('eye'),
+		tooltip: 'Preview font',
+	};
+
+	return new Promise((resolve) => {
+		const quickPick = vscode.window.createQuickPick<{
+			label: string;
+			font: Font;
+			buttons?: vscode.QuickInputButton[];
+		}>();
+
+		quickPick.items = fonts.map((f) => {
+			const isVariable = f.axes && f.axes.length > 0;
+			const tag = isVariable ? ' (Variable)' : '';
+			const subsets = f.subsets.length ? ` [${f.subsets.join(', ')}]` : '';
+			return {
+				label: `${f.family}${tag}`,
+				description: subsets,
+				font: f,
+				buttons: [previewButton],
+			};
 		});
-}
 
-/**
- * Fetches Google Fonts API and lets the user choose a font and its variants.
- */
-async function getGoogleFontFamilyItem(): Promise<GoogleFontFamily> {
-	const fontsOptions = await GoogleApi.getGoogleFonts();
+		quickPick.placeholder = 'Select a font';
 
-	return vscode.window
-		.showQuickPick(
-			fontsOptions.map((item) => item.family),
-			pickOptions
-		)
-		.then((family) => {
-			const font = fontsOptions.find((item) => item.family === family);
-			if (!font) return null;
-
-			return vscode.window
-				.showQuickPick(font.variants, { canPickMany: true })
-				.then((variants) => {
-					font.variants = variants || [];
-					return font;
-				});
+		// Залишається відкритим до явного вибору
+		quickPick.onDidAccept(() => {
+			const selected = quickPick.selectedItems[0];
+			quickPick.hide();
+			previewPanel?.dispose(); // закриваємо прев’ю
+			resolve(selected?.font);
 		});
-}
 
-/**
- * Manage the possibility to insert a <link href=".." /> inside the editor
- */
-async function insertFontLink() {
-	const font = await getGoogleFontFamilyItem();
-	if (!font) return;
+		quickPick.onDidTriggerItemButton(async (e) => {
+			if (e.button === previewButton) {
+				const selectedFont = e.item.font;
+				const fontUrl = generateGoogleFontsURL([
+					{
+						family: selectedFont.family,
+						variants: selectedFont.variants,
+					},
+				]);
 
-	// Creating the <link> markup
-	const snippet = `<link href="${GoogleApi.generateUrl(
-		font
-	)}" rel="stylesheet">`;
-	// Inserting the link markup inside the editor
-	insertText(snippet);
-}
+				const sampleText = 'Work smart, not hard';
 
-/**
- * Manages the possibility to insert a @import url(..) inside the editor
- */
-async function insertFontCssImport() {
-	const font = await getGoogleFontFamilyItem();
-	if (!font) return;
+				if (!previewPanel) {
+					previewPanel = vscode.window.createWebviewPanel(
+						'fontPreview',
+						`Font Preview`,
+						{ viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
+						{ enableScripts: true, retainContextWhenHidden: true }
+					);
 
-	// Creating the @import url(...) snippet
-	const snippet = `@import url("${GoogleApi.generateUrl(font)}");`;
-	// Inserting the @import inside the editor
-	insertText(snippet);
+					previewPanel.onDidDispose(() => {
+						previewPanel = undefined;
+					});
+				}
+
+				previewPanel.title = `Font Preview: ${selectedFont.family}`;
+				previewPanel.webview.html = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <link href="${fontUrl}" rel="stylesheet">
+            <style>
+              *{
+                margin: 0;
+                padding: 0;
+              }
+              body {
+                font-family: '${selectedFont.family}';
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 15px;
+                margin: 0;
+                color: #fff;
+                line-height: 1.2;
+                text-align: center;
+                background: #1e1e1e;
+              }
+              h1 {
+                font-size: 50px;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>${sampleText}</h1>
+          </body>
+          </html>
+        `;
+			}
+		});
+
+		// Автоматичне закриття прев’ю при закритті QuickPick
+		quickPick.onDidHide(() => {
+			previewPanel?.dispose();
+			previewPanel = undefined;
+		});
+
+		quickPick.show();
+	});
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	let insertLink = vscode.commands.registerCommand(
-		'extension.insertLink',
-		() => {
-			var editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				vscode.window.showErrorMessage(
-					"You can't use this extension if you're not in an HTML file context!"
-				);
-				return;
-			}
-			insertFontLink();
+	let disposableImport = vscode.commands.registerCommand(
+		'extension.insertImport',
+		async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) return;
+
+			const font = await selectFont();
+			if (!font) return;
+
+			const selectedVariants = await vscode.window.showQuickPick(
+				font.variants,
+				{
+					canPickMany: true,
+					placeHolder: 'Select font weights and styles (italic, 400, etc)',
+				}
+			);
+
+			if (!selectedVariants || selectedVariants.length === 0) return;
+
+			const fontUrl = generateGoogleFontsURL([
+				{ family: font.family, variants: selectedVariants },
+			]);
+			editor.insertSnippet(
+				new vscode.SnippetString(`@import url('${fontUrl}');`)
+			);
 		}
 	);
 
-	let insertImport = vscode.commands.registerCommand(
-		'extension.insertImport',
-		() => {
-			var editor = vscode.window.activeTextEditor;
-			if (!editor) {
-				vscode.window.showErrorMessage(
-					"You can't use this extension if you're not in an HTML file context!"
-				);
-				return;
-			}
-			insertFontCssImport();
+	const insertLink = vscode.commands.registerCommand(
+		'extension.insertLink',
+		async () => {
+			const editor = vscode.window.activeTextEditor;
+			if (!editor) return;
+
+			const font = await selectFont();
+			if (!font) return;
+
+			const selectedVariants = await vscode.window.showQuickPick(
+				font.variants,
+				{
+					canPickMany: true,
+					placeHolder: 'Select font weights and styles (italic, 400, etc)',
+				}
+			);
+
+			if (!selectedVariants || selectedVariants.length === 0) return;
+
+			const fontUrl = generateGoogleFontsURL([
+				{ family: font.family, variants: selectedVariants },
+			]);
+
+			const documentText = editor.document.getText();
+
+			const needsPreconnect =
+				!documentText.includes('https://fonts.googleapis.com') ||
+				!documentText.includes('https://fonts.gstatic.com');
+
+			const preconnectSnippet = needsPreconnect
+				? `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+`
+				: '';
+
+			editor.insertSnippet(
+				new vscode.SnippetString(
+					`${preconnectSnippet}<link href="${fontUrl}" rel="stylesheet">`
+				)
+			);
 		}
 	);
 
 	context.subscriptions.push(insertLink);
-	context.subscriptions.push(insertImport);
+	context.subscriptions.push(disposableImport);
 }
 
 export function deactivate() {}

@@ -2,7 +2,8 @@
 	"name": "better-google-fonts",
 	"displayName": "Better Google Fonts for VS Code",
 	"description": "Allows you to view and insert Google <link> or @import fonts with the ability to select font weight from the drop-down list ",
-	"version": "0.0.1",
+	"icon": "icon.png",
+	"version": "0.1.1",
 	"publisher": "Pavlo-K",
 	"repository": {
 		"type": "git",
